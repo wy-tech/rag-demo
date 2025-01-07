@@ -7,7 +7,7 @@ from langchain_openai import ChatOpenAI
 from langchain.prompts import ChatPromptTemplate
 
 from backend.pydantic_models import CardTypeFilter, PaymentTypeFilter
-from backend.utils import get_unique_union
+from backend.utils import get_unique_union, convert_to_langchain_history
 from backend.vector_store import setup_vector_store
 
 vector_store = setup_vector_store()
@@ -16,7 +16,6 @@ llm = ChatOpenAI(model="gpt-3.5-turbo", temperature=0)
 target_k = 4
 
 def get_card_type(state):
-    print(f"start get card type: {datetime.datetime.now()}")
 
     question = state.get("question")
     system = """
@@ -37,11 +36,9 @@ def get_card_type(state):
     structured_card_type_llm = llm.with_structured_output(CardTypeFilter)
     structured_query_analyzer_card_type = prompt | structured_card_type_llm
     card_types = structured_query_analyzer_card_type.invoke(question)
-    print(f"end get card type: {datetime.datetime.now()}")
     return {"card_type": card_types.card_type}
 
 def get_card_type(state):
-    print(f"start get card type: {datetime.datetime.now()}")
 
     question = state.get("question")
     system = """
@@ -62,11 +59,9 @@ def get_card_type(state):
     structured_card_type_llm = llm.with_structured_output(CardTypeFilter)
     structured_query_analyzer_card_type = prompt | structured_card_type_llm
     card_types = structured_query_analyzer_card_type.invoke(question)
-    print(f"end get card type: {datetime.datetime.now()}")
     return {"card_type": card_types.card_type}
 
 def get_payment_type(state):
-    print(f"start get payment type: {datetime.datetime.now()}")
 
     question = state.get("question")
     system = """
@@ -84,12 +79,9 @@ def get_payment_type(state):
             ("human", "{question}"),
         ]
     )
-    payment_type_llm = llm.with_structured_output(PaymentTypeFilter)
     structured_payment_type_llm = llm.with_structured_output(PaymentTypeFilter)
     structured_query_analyzer_payment_type = prompt | structured_payment_type_llm
-    print(payment_type_llm.invoke(question))
     payment_type = structured_query_analyzer_payment_type.invoke(question)
-    print(f"end get payment type: {datetime.datetime.now()}")
     return {"payment_type": payment_type.payment_type}
 
 def construct_filter(state):
@@ -132,14 +124,11 @@ def filter_parallel(state):
                         "debit":"paymentType_Debit",
                         "credit":"paymentType_Credit",
                         }
-    print(payment_type)
-    print(card_type)
     types = []
     if payment_type != "any":
         types.append(payment_type)
     if "any" not in card_type:
         types.extend(card_type)
-    print(types)
     filter_list = []
     for t in types:
         filter_list.append({metadata_to_filter[t]: {'$eq':True}})
@@ -148,7 +137,6 @@ def filter_parallel(state):
 
 
 def multi_query_retriever(state):
-    print(f"start mq retriever type: {datetime.datetime.now()}")
     filter_list = state.get("filter_list")
     question = state.get("question")
     # filter_list = [{'paymentType_Credit': {'$eq': True}},
@@ -181,7 +169,6 @@ def multi_query_retriever(state):
     # Retrieve
     retrieval_chain = generate_queries | retriever.map() | get_unique_union
     docs = retrieval_chain.invoke({"question":question})
-    print(f"end mq retriever type: {datetime.datetime.now()}")
     return {"multi_query_docs": docs}
 
     # return docs
@@ -189,7 +176,6 @@ def multi_query_retriever(state):
 
 
 def decomposition_retriever(state):
-    print(f"start d retriever type: {datetime.datetime.now()}")
     filter_list = state.get("filter_list")
     question = state.get("question")
     # filter_list = [{'paymentType_Credit': {'$eq': True}},
@@ -199,8 +185,9 @@ def decomposition_retriever(state):
     filter_dict = {'$and': filter_list}
     
     # Decomposition
-    template = """You are a helpful assistant that generates multiple sub-questions related to an input question. \n
+    template = """You are a helpful assistant that breaks down an input question into its sub-questions. \n
     The goal is to break down the input into a set of sub-problems / sub-questions that can be answers in isolation. \n
+    You must not fluff up or decorate the sub-questions. \n
     Generate multiple search queries related to: {question} \n
     Output (3 queries):"""
     prompt_decomposition = ChatPromptTemplate.from_template(template)
@@ -219,17 +206,23 @@ def decomposition_retriever(state):
     # Retrieve
     retrieval_chain = generate_queries_decomposition | retriever.map() | get_unique_union
     docs = retrieval_chain.invoke({"question":question})
-    print(f"end d retriever type: {datetime.datetime.now()}")
     return {"decomposition_docs": docs}
     # return docs
 
 
 def generate(state):
-    print(f"start gen type: {datetime.datetime.now()}")
     decomposition_docs = state.get("decomposition_docs")
     multi_query_docs = state.get("multi_query_docs")
     question = state.get("question")
+    history = state.get("history")
 
+    # Example st.session_state.messages
+    # st.session_state.messages = [
+    #     {"role": "human", "content": "Hello!"},
+    #     {"role": "ai", "content": "Hi there! How can I help you?"},
+    # ]
+
+    history = convert_to_langchain_history(history)
     context = get_unique_union([decomposition_docs,multi_query_docs])
     # Prompt
     template = """You are an AI Assistant who answers questions for VISA card offers. 
@@ -237,12 +230,14 @@ def generate(state):
 
     If you are unable to help, politely say so.
 
-    Answer based only on the following context:
+    You may use the chat history if the customer requires it:
+    {history}
+    
+    Answer based only on the chat history and the following context:
     {context}
 
     Question: {question}
     """
     prompt = ChatPromptTemplate.from_template(template)
     rag_chain = LLMChain(llm=llm, prompt=prompt)
-    print(f"end gen type: {datetime.datetime.now()}")
-    return {"generation": rag_chain.run({"context": context, "question": question})}
+    return {"generation": rag_chain.run({"context": context, "question": question, "history": history})}

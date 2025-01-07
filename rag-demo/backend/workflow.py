@@ -15,14 +15,15 @@ class GraphState(TypedDict):
     payment_type: str
     filter_list = List[str]
     generation: str
+    history: str
 
 def create_workflow():
     workflow = StateGraph(GraphState)
     # Define the nodes
-    workflow.add_node("filter_parallel", filter_parallel)  # generatae
-    workflow.add_node("multi_query_retriever", multi_query_retriever)  # transform_query
-    workflow.add_node("decomposition_retriever", decomposition_retriever)  # transform_query
-    workflow.add_node("generate", generate)  # transform_query
+    workflow.add_node("filter_parallel", filter_parallel)  
+    workflow.add_node("multi_query_retriever", multi_query_retriever)  
+    workflow.add_node("decomposition_retriever", decomposition_retriever)  
+    workflow.add_node("generate", generate) 
 
     # # Build graph
     workflow.add_edge(START,"filter_parallel")

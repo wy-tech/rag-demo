@@ -28,7 +28,8 @@ if user_input := st.chat_input("Ask me something about VISA offers:"):
         response_container = st.empty()
         response_text = ""
         # Stream response from LangGraph
-        for message, metadata in app.stream({"question": user_input, "history": st.session_state.messages}, stream_mode="messages"):
+        # currently not using history (st.session_state.messages) as it degrades performance. I make the trade-off of removing muilti-turn capabilities for this assistant.
+        for message, metadata in app.stream({"question": user_input, "history": [{"role": "user", "content": user_input}]}, stream_mode="messages"): 
             if metadata["langgraph_node"] == "generate":
                 response_text += message.content
                 response_container.markdown(response_text)
