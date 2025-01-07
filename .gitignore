@@ -1,0 +1,9 @@
+# ignore terraform
+terraform/*.tfstate
+terraform/*.tfstate.*
+terraform/.terraform*
+
+# ignore irrelevant files
+rag-demo/backend/__pycache__
+rag-demo/chroma_db
+

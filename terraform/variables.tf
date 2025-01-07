@@ -10,7 +10,7 @@ variable "ec2_iam_role_name" {
     type = string
 }
 
-variable "key_name" {
+variable "KEY_NAME" {
   description = "key name for ssh"
   type        = string
 }
@@ -25,4 +25,19 @@ variable "OPENAI_API_KEY" {
   type        = string
 }
 
+variable "LANGCHAIN_TRACING_V2" {
+  description = "Langchain tracing for logging to langsmith"
+  default = "true" 
+  type = string
+}
 
+variable "LANGCHAIN_ENDPOINT" {
+  description = "Langchain endpoint for logging to langsmith"
+  default = "https://api.smith.langchain.com" 
+  type = string
+}
+
+variable "LANGCHAIN_API_KEY" {
+  description = "Langchain API key for logging to langsmith"
+  type = string
+}

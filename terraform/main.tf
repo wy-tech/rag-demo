@@ -59,7 +59,7 @@ resource "aws_security_group" "rag_sg" {
 # Create EC2 instance, attach above security group and iam role
 resource "aws_instance" "rag_ec2" {
   instance_type = "t2.micro"
-  key_name      = var.key_name  
+  key_name      = var.KEY_NAME  
   security_groups = [aws_security_group.rag_sg.name]
   iam_instance_profile = aws_iam_instance_profile.ec2_profile.name
   ami = "ami-0995922d49dc9a17d"
@@ -79,6 +79,11 @@ resource "aws_instance" "rag_ec2" {
   aws ecr get-login-password --region "${var.region}" | docker login --username AWS --password-stdin "${var.AWS_ACCOUNT_ID}".dkr.ecr."${var.region}".amazonaws.com
   docker pull "${var.AWS_ACCOUNT_ID}".dkr.ecr."${var.region}".amazonaws.com/rag-demo:latest
   docker tag "${var.AWS_ACCOUNT_ID}".dkr.ecr."${var.region}".amazonaws.com/rag-demo:latest rag-demo:latest
-  docker run -p 8501:8501 -e OPENAI_API_KEY="${var.OPENAI_API_KEY}" -d --name rag-demo rag-demo:latest
+  docker run -p 8501:8501 \
+  -e OPENAI_API_KEY="${var.OPENAI_API_KEY}" \
+  -e LANGCHAIN_API_KEY="${var.LANGCHAIN_API_KEY}" \
+  -e LANGCHAIN_TRACING_V2="${var.LANGCHAIN_TRACING_V2}" \
+  -e LANGCHAIN_ENDPOINT="${var.LANGCHAIN_ENDPOINT}" \
+  -d --name rag-demo rag-demo:latest
 EOT
 }
