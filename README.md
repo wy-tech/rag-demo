@@ -34,6 +34,8 @@ RAG pipeline consists of the following stages:
 - Add logging and monitoring servers
 - Additional functional requirements
     - e.g. rating responses
+- Automatic update of vector database when VISA offers are updated
+- Authentication to ensure only VISA card holders are using this service
 - Explore further on agentic RAG
 
 
